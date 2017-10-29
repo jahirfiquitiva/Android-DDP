@@ -755,7 +755,7 @@ public class Meteor {
                                 mListeners.remove(subscriptionId);
 
                                 mCallbackProxy.forSubscribeListener((SubscribeListener) listener)
-                                        .onSuccess(fields, subs);
+                                        .onSuccess();
                             }
                         }
                     }
