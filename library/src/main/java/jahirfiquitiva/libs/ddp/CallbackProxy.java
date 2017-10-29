@@ -212,7 +212,8 @@ public class CallbackProxy implements MeteorCallback {
         return new SubscribeListener() {
 
             @Override
-            public void onSuccess() {
+            public void onSuccess(final String result, final String collection,
+                                  final String details, final String message) {
                 // if the callback exists
                 if (callback != null) {
                     // execute the callback on the main thread
@@ -221,7 +222,7 @@ public class CallbackProxy implements MeteorCallback {
                         @Override
                         public void run() {
                             // run the proxied method with the same parameters
-                            callback.onSuccess();
+                            callback.onSuccess(result, collection, details, message);
                         }
 
                     });
