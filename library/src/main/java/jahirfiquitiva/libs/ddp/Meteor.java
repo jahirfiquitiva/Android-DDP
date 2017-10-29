@@ -739,6 +739,27 @@ public class Meteor {
                             result = null;
                         }
 
+                        final String collection;
+                        if (data.has(Protocol.Field.COLLECTION)) {
+                            collection = data.get(Protocol.Field.COLLECTION).toString();
+                        } else {
+                            collection = null;
+                        }
+
+                        final String details;
+                        if (data.has(Protocol.Field.DETAILS)) {
+                            details = data.get(Protocol.Field.DETAILS).toString();
+                        } else {
+                            details = null;
+                        }
+
+                        final String messages;
+                        if (data.has(Protocol.Field.MESSAGE)) {
+                            messages = data.get(Protocol.Field.MESSAGE).toString();
+                        } else {
+                            messages = null;
+                        }
+
                         while (elements.hasNext()) {
                             subscriptionId = elements.next().asText();
 
@@ -748,7 +769,7 @@ public class Meteor {
                                 mListeners.remove(subscriptionId);
 
                                 mCallbackProxy.forSubscribeListener((SubscribeListener) listener)
-                                        .onSuccess(result);
+                                        .onSuccess(result, collection, details, messages);
                             }
                         }
                     }

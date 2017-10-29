@@ -16,9 +16,11 @@ package jahirfiquitiva.libs.ddp;
  * limitations under the License.
  */
 
+import jahirfiquitiva.libs.ddp.db.Collection;
+
 public interface SubscribeListener extends Listener {
 
-    void onSuccess(String result);
+    void onSuccess(String result, String collection,String details, String message);
 
     void onError(String error, String reason, String details);
 
