@@ -732,6 +732,13 @@ public class Meteor {
                                 data.get(Protocol.Field.SUBS).elements();
                         String subscriptionId;
 
+                        final String result;
+                        if (data.has(Protocol.Field.RESULT)) {
+                            result = data.get(Protocol.Field.RESULT).toString();
+                        } else {
+                            result = null;
+                        }
+
                         while (elements.hasNext()) {
                             subscriptionId = elements.next().asText();
 
@@ -741,7 +748,7 @@ public class Meteor {
                                 mListeners.remove(subscriptionId);
 
                                 mCallbackProxy.forSubscribeListener((SubscribeListener) listener)
-                                        .onSuccess();
+                                        .onSuccess(result);
                             }
                         }
                     }

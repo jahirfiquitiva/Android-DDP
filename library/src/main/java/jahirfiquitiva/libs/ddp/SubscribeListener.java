@@ -18,7 +18,7 @@ package jahirfiquitiva.libs.ddp;
 
 public interface SubscribeListener extends Listener {
 
-    void onSuccess();
+    void onSuccess(String result);
 
     void onError(String error, String reason, String details);
 
