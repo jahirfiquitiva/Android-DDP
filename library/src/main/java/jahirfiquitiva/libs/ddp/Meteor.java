@@ -732,32 +732,18 @@ public class Meteor {
                                 data.get(Protocol.Field.SUBS).elements();
                         String subscriptionId;
 
-                        final String result;
-                        if (data.has(Protocol.Field.RESULT)) {
-                            result = data.get(Protocol.Field.RESULT).toString();
+                        final String fields;
+                        if (data.has(Protocol.Field.FIELDS)) {
+                            fields = data.get(Protocol.Field.FIELDS).toString();
                         } else {
-                            result = null;
+                            fields = null;
                         }
 
-                        final String collection;
-                        if (data.has(Protocol.Field.COLLECTION)) {
-                            collection = data.get(Protocol.Field.COLLECTION).toString();
+                        final String subs;
+                        if (data.has(Protocol.Field.SUBS)) {
+                            subs = data.get(Protocol.Field.SUBS).toString();
                         } else {
-                            collection = null;
-                        }
-
-                        final String details;
-                        if (data.has(Protocol.Field.DETAILS)) {
-                            details = data.get(Protocol.Field.DETAILS).toString();
-                        } else {
-                            details = null;
-                        }
-
-                        final String messages;
-                        if (data.has(Protocol.Field.MESSAGE)) {
-                            messages = data.get(Protocol.Field.MESSAGE).toString();
-                        } else {
-                            messages = null;
+                            subs = null;
                         }
 
                         while (elements.hasNext()) {
@@ -769,7 +755,7 @@ public class Meteor {
                                 mListeners.remove(subscriptionId);
 
                                 mCallbackProxy.forSubscribeListener((SubscribeListener) listener)
-                                        .onSuccess(result, collection, details, messages);
+                                        .onSuccess(fields, subs);
                             }
                         }
                     }
@@ -1302,7 +1288,7 @@ public class Meteor {
             mListeners.put(subscriptionId, listener);
         }
 
-        final Map<String, Object> data = new HashMap<String, Object>();
+        final Map<String, Object> data = new HashMap<>();
 
         data.put(Protocol.Field.MESSAGE, Protocol.Message.SUBSCRIBE);
         data.put(Protocol.Field.NAME, subscriptionName);
