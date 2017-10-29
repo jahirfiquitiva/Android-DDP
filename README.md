@@ -4,6 +4,8 @@ This library implements the [Distributed Data Protocol](https://www.meteor.com/d
 
 Connect your native Android apps, written in Java, to apps built with the [Meteor](https://www.meteor.com/) framework and build real-time features.
 
+This project is completely based on [this one](https://github.com/delight-im/Android-DDP/)
+
 ## Motivation
 
  * Have you built a web application with Meteor?
@@ -16,7 +18,7 @@ Connect your native Android apps, written in Java, to apps built with the [Meteo
 
 ## Requirements
 
- * Android 2.3+
+ * Android 4.1+
 
 ## Installation
 
@@ -35,7 +37,7 @@ Connect your native Android apps, written in Java, to apps built with the [Meteo
 
      ```gradle
      dependencies {
-         compile 'com.github.delight-im:Android-DDP:v3.3.1'
+         compile 'me.jahirfiquitiva.Android-DDP:0.0.1'
      }
      ```
 
@@ -52,7 +54,7 @@ Connect your native Android apps, written in Java, to apps built with the [Meteo
    ```java
    public class MyActivity extends Activity implements MeteorCallback {
 
-       private Meteor mMeteor;
+       private Meteor meteor;
 
        @Override
        protected void onCreate(Bundle savedInstanceState) {
@@ -61,13 +63,13 @@ Connect your native Android apps, written in Java, to apps built with the [Meteo
            // ...
 
            // create a new instance
-           mMeteor = new Meteor(this, "ws://example.meteor.com/websocket");
+           meteor = new Meteor(this, "ws://example.meteor.com/websocket");
 
            // register the callback that will handle events and receive messages
-           mMeteor.addCallback(this);
+           meteor.addCallback(this);
 
            // establish the connection
-           mMeteor.connect();
+           meteor.connect();
        }
 
        public void onConnect(boolean signedInAutomatically) { }
@@ -96,10 +98,10 @@ Connect your native Android apps, written in Java, to apps built with the [Meteo
 
        @Override
        public void onDestroy() {
-           mMeteor.disconnect();
-           mMeteor.removeCallback(this);
+           meteor.disconnect();
+           meteor.removeCallback(this);
            // or
-           // mMeteor.removeCallbacks();
+           // meteor.removeCallbacks();
 
            // ...
 
@@ -123,25 +125,25 @@ Connect your native Android apps, written in Java, to apps built with the [Meteo
      ```java
      MeteorSingleton.getInstance()
      // instead of
-     // mMeteor
+     // meteor
      ```
 
-   * All other API methods can be called on `MeteorSingleton.getInstance()` just as you would do on any other `Meteor` instance, as documented here with `mMeteor`
+   * All other API methods can be called on `MeteorSingleton.getInstance()` just as you would do on any other `Meteor` instance, as documented here with `meteor`
 
  * Registering a callback
 
    ```java
    // MeteorCallback callback;
-   mMeteor.addCallback(callback);
+   meteor.addCallback(callback);
    ```
 
  * Unregistering a callback
 
    ```java
-   mMeteor.removeCallbacks();
+   meteor.removeCallbacks();
    // or
    // // MeteorCallback callback;
-   // mMeteor.removeCallback(callback);
+   // meteor.removeCallback(callback);
    ```
 
  * Available data types
@@ -169,9 +171,9 @@ Connect your native Android apps, written in Java, to apps built with the [Meteo
    values.put("_id", "my-id");
    values.put("some-key", "some-value");
 
-   mMeteor.insert("my-collection", values);
+   meteor.insert("my-collection", values);
    // or
-   // mMeteor.insert("my-collection", values, new ResultListener() { });
+   // meteor.insert("my-collection", values, new ResultListener() { });
    ```
 
  * Updating data in a collection
@@ -183,107 +185,107 @@ Connect your native Android apps, written in Java, to apps built with the [Meteo
    Map<String, Object> values = new HashMap<String, Object>();
    values.put("some-key", "some-value");
 
-   mMeteor.update("my-collection", query, values);
+   meteor.update("my-collection", query, values);
    // or
-   // mMeteor.update("my-collection", query, values, options);
+   // meteor.update("my-collection", query, values, options);
    // or
-   // mMeteor.update("my-collection", query, values, options, new ResultListener() { });
+   // meteor.update("my-collection", query, values, options, new ResultListener() { });
    ```
 
  * Deleting data from a collection
 
    ```java
-   mMeteor.remove("my-collection", "my-id");
+   meteor.remove("my-collection", "my-id");
    // or
-   // mMeteor.remove("my-collection", "my-id", new ResultListener() { });
+   // meteor.remove("my-collection", "my-id", new ResultListener() { });
    ```
 
  * Subscribing to data from the server
 
    ```java
-   String subscriptionId = mMeteor.subscribe("my-subscription");
+   String subscriptionId = meteor.subscribe("my-subscription");
    // or
-   // String subscriptionId = mMeteor.subscribe("my-subscription", new Object[] { arg1, arg2 });
+   // String subscriptionId = meteor.subscribe("my-subscription", new Object[] { arg1, arg2 });
    // or
-   // String subscriptionId = mMeteor.subscribe("my-subscription", new Object[] { arg1, arg2 }, new SubscribeListener() { });
+   // String subscriptionId = meteor.subscribe("my-subscription", new Object[] { arg1, arg2 }, new SubscribeListener() { });
    ```
 
  * Unsubscribing from a previously established subscription
 
    ```java
-   mMeteor.unsubscribe(subscriptionId);
+   meteor.unsubscribe(subscriptionId);
    // or
-   // mMeteor.unsubscribe(subscriptionId, new UnsubscribeListener() { });
+   // meteor.unsubscribe(subscriptionId, new UnsubscribeListener() { });
    ```
 
  * Calling a custom method defined on the server
 
    ```java
-   mMeteor.call("myMethod");
+   meteor.call("myMethod");
    // or
-   // mMeteor.call("myMethod", new Object[] { arg1, arg2 });
+   // meteor.call("myMethod", new Object[] { arg1, arg2 });
    // or
-   // mMeteor.call("myMethod", new ResultListener() { });
+   // meteor.call("myMethod", new ResultListener() { });
    // or
-   // mMeteor.call("myMethod", new Object[] { arg1, arg2 }, new ResultListener() { });
+   // meteor.call("myMethod", new Object[] { arg1, arg2 }, new ResultListener() { });
    ```
 
  * Disconnect from the server
 
    ```java
-   mMeteor.disconnect();
+   meteor.disconnect();
    ```
 
  * Creating a new account (requires `accounts-password` package)
 
    ```java
-   mMeteor.registerAndLogin("john", "john.doe@example.com", "password", new ResultListener() { });
+   meteor.registerAndLogin("john", "john.doe@example.com", "password", new ResultListener() { });
    // or
-   // mMeteor.registerAndLogin("john", "john.doe@example.com", "password", profile, new ResultListener() { });
+   // meteor.registerAndLogin("john", "john.doe@example.com", "password", profile, new ResultListener() { });
    ```
 
  * Signing in with an existing username (requires `accounts-password` package)
 
    ```java
-   mMeteor.loginWithUsername("john", "password", new ResultListener() { });
+   meteor.loginWithUsername("john", "password", new ResultListener() { });
    ```
 
  * Signing in with an existing email address (requires `accounts-password` package)
 
    ```java
-   mMeteor.loginWithEmail("john.doe@example.com", "password", new ResultListener() { });
+   meteor.loginWithEmail("john.doe@example.com", "password", new ResultListener() { });
    ```
 
  * Check if the client is currently logged in (requires `accounts-password` package)
 
    ```java
-   mMeteor.isLoggedIn();
+   meteor.isLoggedIn();
    ```
 
  * Get the client's user ID (if currently logged in) (requires `accounts-password` package)
 
    ```java
-   mMeteor.getUserId();
+   meteor.getUserId();
    ```
 
  * Logging out (requires `accounts-password` package)
 
    ```java
-   mMeteor.logout();
+   meteor.logout();
    // or
-   // mMeteor.logout(new ResultListener() { });
+   // meteor.logout(new ResultListener() { });
    ```
 
  * Checking whether the client is connected
 
    ```java
-   mMeteor.isConnected();
+   meteor.isConnected();
    ```
 
  * Manually attempt to re-connect (if necessary)
 
    ```java
-   mMeteor.reconnect();
+   meteor.reconnect();
    ```
 
 ## Using databases to manage data
@@ -293,7 +295,7 @@ Connect your native Android apps, written in Java, to apps built with the [Meteo
 Pass an instance of `Database` to the constructor. Right now, the only subclass provided as a built-in database is `InMemoryDatabase`. So the code for the constructor becomes:
 
 ```java
-mMeteor = new Meteor(this, "ws://example.meteor.com/websocket", new InMemoryDatabase());
+meteor = new Meteor(this, "ws://example.meteor.com/websocket", new InMemoryDatabase());
 ```
 
 After that change, all data received from the server will automatically be parsed, updated and managed for you in the built-in database. That means no manual JSON parsing!
@@ -303,7 +305,7 @@ So whenever you receive data notifications via `onDataAdded`, `onDataChanged` or
 ### Accessing the database
 
 ```java
-Database database = mMeteor.getDatabase();
+Database database = meteor.getDatabase();
 ```
 
 This method call and most of the following method calls can be chained for simplicity.
@@ -312,38 +314,38 @@ This method call and most of the following method calls can be chained for simpl
 
 ```java
 // String collectionName = "myCollection";
-Collection collection = mMeteor.getDatabase().getCollection(collectionName);
+Collection collection = meteor.getDatabase().getCollection(collectionName);
 ```
 
 ### Retrieving the names of all collections from the database
 
 ```java
-String[] collectionNames = mMeteor.getDatabase().getCollectionNames();
+String[] collectionNames = meteor.getDatabase().getCollectionNames();
 ```
 
 ### Fetching the number of collections from the database
 
 ```java
-int numCollections = mMeteor.getDatabase().count();
+int numCollections = meteor.getDatabase().count();
 ```
 
 ### Getting a document from a collection by ID
 
 ```java
 // String documentId = "wjQvNQ6sGjzLMDyiJ";
-Document document = mMeteor.getDatabase().getCollection(collectionName).getDocument(documentId);
+Document document = meteor.getDatabase().getCollection(collectionName).getDocument(documentId);
 ```
 
 ### Retrieving the IDs of all documents from a collection
 
 ```java
-String[] documentIds = mMeteor.getDatabase().getCollection(collectionName).getDocumentIds();
+String[] documentIds = meteor.getDatabase().getCollection(collectionName).getDocumentIds();
 ```
 
 ### Fetching the number of documents from a collection
 
 ```java
-int numDocuments = mMeteor.getDatabase().getCollection(collectionName).count();
+int numDocuments = meteor.getDatabase().getCollection(collectionName).count();
 ```
 
 ### Querying a collection for documents
@@ -353,105 +355,105 @@ Any of the following method calls can be chained and combined in any way to sele
 ```java
 // String fieldName = "age";
 // int fieldValue = 62;
-Query query = mMeteor.getDatabase().getCollection(collectionName).whereEqual(fieldName, fieldValue);
+Query query = meteor.getDatabase().getCollection(collectionName).whereEqual(fieldName, fieldValue);
 ```
 
 ```java
 // String fieldName = "active";
 // int fieldValue = false;
-Query query = mMeteor.getDatabase().getCollection(collectionName).whereNotEqual(fieldName, fieldValue);
+Query query = meteor.getDatabase().getCollection(collectionName).whereNotEqual(fieldName, fieldValue);
 ```
 
 ```java
 // String fieldName = "accountBalance";
 // float fieldValue = 100000.00f;
-Query query = mMeteor.getDatabase().getCollection(collectionName).whereLessThan(fieldName, fieldValue);
+Query query = meteor.getDatabase().getCollection(collectionName).whereLessThan(fieldName, fieldValue);
 ```
 
 ```java
 // String fieldName = "numChildren";
 // long fieldValue = 3L;
-Query query = mMeteor.getDatabase().getCollection(collectionName).whereLessThanOrEqual(fieldName, fieldValue);
+Query query = meteor.getDatabase().getCollection(collectionName).whereLessThanOrEqual(fieldName, fieldValue);
 ```
 
 ```java
 // String fieldName = "revenue";
 // double fieldValue = 0.00;
-Query query = mMeteor.getDatabase().getCollection(collectionName).whereGreaterThan(fieldName, fieldValue);
+Query query = meteor.getDatabase().getCollection(collectionName).whereGreaterThan(fieldName, fieldValue);
 ```
 
 ```java
 // String fieldName = "age";
 // int fieldValue = 21;
-Query query = mMeteor.getDatabase().getCollection(collectionName).whereGreaterThanOrEqual(fieldName, fieldValue);
+Query query = meteor.getDatabase().getCollection(collectionName).whereGreaterThanOrEqual(fieldName, fieldValue);
 ```
 
 ```java
 // String fieldName = "address";
-Query query = mMeteor.getDatabase().getCollection(collectionName).whereNull(fieldName);
+Query query = meteor.getDatabase().getCollection(collectionName).whereNull(fieldName);
 ```
 
 ```java
 // String fieldName = "modifiedAt";
-Query query = mMeteor.getDatabase().getCollection(collectionName).whereNotNull(fieldName);
+Query query = meteor.getDatabase().getCollection(collectionName).whereNotNull(fieldName);
 ```
 
 ```java
 // String fieldName = "age";
 // Integer[] fieldValues = new Integer[] { 60, 70, 80 };
-Query query = mMeteor.getDatabase().getCollection(collectionName).whereIn(fieldName, fieldValues);
+Query query = meteor.getDatabase().getCollection(collectionName).whereIn(fieldName, fieldValues);
 ```
 
 ```java
 // String fieldName = "languageCode";
 // String[] fieldValues = new String[] { "zh", "es", "en", "hi", "ar" };
-Query query = mMeteor.getDatabase().getCollection(collectionName).whereNotIn(fieldName, fieldValues);
+Query query = meteor.getDatabase().getCollection(collectionName).whereNotIn(fieldName, fieldValues);
 ```
 
 Any query can be executed by a `find` or `findOne` call. The step of first creating the `Query` instance can be skipped if you chain the calls to execute the query immediately.
 
 ```java
-Document[] documents = mMeteor.getDatabase().getCollection(collectionName).find();
+Document[] documents = meteor.getDatabase().getCollection(collectionName).find();
 ```
 
 ```java
 // int limit = 30;
-Document[] documents = mMeteor.getDatabase().getCollection(collectionName).find(limit);
+Document[] documents = meteor.getDatabase().getCollection(collectionName).find(limit);
 ```
 
 ```java
 // int limit = 30;
 // int offset = 5;
-Document[] documents = mMeteor.getDatabase().getCollection(collectionName).find(limit, offset);
+Document[] documents = meteor.getDatabase().getCollection(collectionName).find(limit, offset);
 ```
 
 ```java
-Document document = mMeteor.getDatabase().getCollection(collectionName).findOne();
+Document document = meteor.getDatabase().getCollection(collectionName).findOne();
 ```
 
 Chained together, these calls may look as follows, for example:
 
 ```java
-Document document = mMeteor.getDatabase().getCollection("users").whereNotNull("lastLoginAt").whereGreaterThan("level", 3).findOne();
+Document document = meteor.getDatabase().getCollection("users").whereNotNull("lastLoginAt").whereGreaterThan("level", 3).findOne();
 ```
 
 ### Getting a field from a document by name
 
 ```java
 // String fieldName = "age";
-Object field = mMeteor.getDatabase().getCollection(collectionName).getDocument(documentId).getField(fieldName);
+Object field = meteor.getDatabase().getCollection(collectionName).getDocument(documentId).getField(fieldName);
 ```
 
 ### Retrieving the names of all fields from a document
 
 ```java
-String[] fieldNames = mMeteor.getDatabase().getCollection(collectionName).getDocument(documentId).getFieldNames();
+String[] fieldNames = meteor.getDatabase().getCollection(collectionName).getDocument(documentId).getFieldNames();
 ```
 
 ### Fetching the number of fields from a document
 
 ```java
-int numFields = mMeteor.getDatabase().getCollection(collectionName).getDocument(documentId).count();
+int numFields = meteor.getDatabase().getCollection(collectionName).getDocument(documentId).count();
 ```
 
 ## Contributing
