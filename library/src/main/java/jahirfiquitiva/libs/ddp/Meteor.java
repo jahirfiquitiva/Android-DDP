@@ -543,6 +543,8 @@ public class Meteor {
         }
 
         if (data != null) {
+            log("Data String --> " + data.toString());
+            log("Data as text --> " + data.asText());
             if (data.has(Protocol.Field.MESSAGE)) {
                 final String message = data.get(Protocol.Field.MESSAGE).asText();
 
@@ -828,6 +830,33 @@ public class Meteor {
         }
 
         send(data);
+    }
+
+    /**
+     * Fetch data from the specified collection
+     *
+     * @param collectionName
+     *         the collection to fetch the data from
+     * @param data
+     *         the data to send to call
+     */
+    public void fetch(final String collectionName, final Map<String, Object> data) {
+        fetch(collectionName, data, null);
+    }
+
+    /**
+     * Fetch data from the specified collection
+     *
+     * @param collectionName
+     *         the collection to fetch the data from
+     * @param data
+     *         the data to send to call
+     * @param listener
+     *         the listener to call on success/error
+     */
+    public void fetch(final String collectionName, final Map<String, Object> data,
+                      final ResultListener listener) {
+        call("/" + collectionName + "/fetch", new Object[]{data}, listener);
     }
 
     /**
