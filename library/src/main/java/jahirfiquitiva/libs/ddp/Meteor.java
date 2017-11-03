@@ -30,6 +30,9 @@ import com.neovisionaries.ws.client.WebSocketFrame;
 import com.neovisionaries.ws.client.WebSocketListener;
 import com.neovisionaries.ws.client.WebSocketState;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -381,7 +384,7 @@ public class Meteor {
      *         an existing session ID or `null`
      */
     private void initConnection(final String existingSessionID) {
-        final Map<String, Object> data = new HashMap<String, Object>();
+        final Map<String, Object> data = new HashMap<>();
 
         data.put(Protocol.Field.MESSAGE, Protocol.Message.CONNECT);
         data.put(Protocol.Field.VERSION, mDdpVersion);
@@ -428,8 +431,32 @@ public class Meteor {
             throw new IllegalArgumentException("Object would be serialized to `null`");
         }
 
+        log("Sending: " + jsonStr);
+
         // send the JSON string
         send(jsonStr);
+    }
+
+    /**
+     * Sends a JSONObject over the websocket
+     *
+     * @param obj
+     *         The JSONObject to send
+     */
+    private void send(final JSONObject obj) {
+        if (obj == null) throw new IllegalArgumentException("Cannot send a null object");
+        send(obj.toString());
+    }
+
+    /**
+     * Sends a JSONArray over the websocket
+     *
+     * @param array
+     *         The JSONArray to send
+     */
+    private void send(final JSONArray array) {
+        if (array == null) throw new IllegalArgumentException("Cannot send a null object");
+        send(array.toString());
     }
 
     /**
@@ -511,14 +538,12 @@ public class Meteor {
         try {
             if (json != null) {
                 final JsonNode jsonNode = mObjectMapper.readTree(json);
-
                 return mObjectMapper.convertValue(jsonNode, targetType);
             } else {
                 return null;
             }
         } catch (Exception e) {
             mCallbackProxy.onException(e);
-
             return null;
         }
     }
@@ -543,253 +568,267 @@ public class Meteor {
         }
 
         if (data != null) {
-            log("Data String --> " + data.toString());
-            log("Data as text --> " + data.asText());
             if (data.has(Protocol.Field.MESSAGE)) {
                 final String message = data.get(Protocol.Field.MESSAGE).asText();
 
-                if (message.equals(Protocol.Message.CONNECTED)) {
-                    if (data.has(Protocol.Field.SESSION)) {
-                        mSessionID = data.get(Protocol.Field.SESSION).asText();
-                    }
-
-                    // initialize the new session
-                    initSession();
-                } else if (message.equals(Protocol.Message.FAILED)) {
-                    if (data.has(Protocol.Field.VERSION)) {
-                        // the server wants to use a different protocol version
-                        final String desiredVersion =
-                                data.get(Protocol.Field.VERSION).asText();
-
-                        // if the protocol version that was requested by the server is supported
-                        // by this client
-                        if (isVersionSupported(desiredVersion)) {
-                            // remember which version has been requested
-                            mDdpVersion = desiredVersion;
-
-                            // the server should be closing the connection now and we will
-                            // re-connect afterwards
-                        } else {
-                            throw new RuntimeException(
-                                    "Protocol version not supported: " + desiredVersion);
+                switch (message) {
+                    case Protocol.Message.CONNECTED:
+                        if (data.has(Protocol.Field.SESSION)) {
+                            mSessionID = data.get(Protocol.Field.SESSION).asText();
                         }
-                    }
-                } else if (message.equals(Protocol.Message.PING)) {
-                    final String id;
+                        // initialize the new session
+                        initSession();
+                        break;
+                    case Protocol.Message.FAILED:
+                        if (data.has(Protocol.Field.VERSION)) {
+                            // the server wants to use a different protocol version
+                            final String desiredVersion =
+                                    data.get(Protocol.Field.VERSION).asText();
 
-                    if (data.has(Protocol.Field.ID)) {
-                        id = data.get(Protocol.Field.ID).asText();
-                    } else {
-                        id = null;
-                    }
+                            // if the protocol version that was requested by the server is supported
+                            // by this client
+                            if (isVersionSupported(desiredVersion)) {
+                                // remember which version has been requested
+                                mDdpVersion = desiredVersion;
 
-                    sendPong(id);
-                } else if (message.equals(Protocol.Message.ADDED) ||
-                        message.equals(Protocol.Message.ADDED_BEFORE)) {
-                    final String documentID;
-
-                    if (data.has(Protocol.Field.ID)) {
-                        documentID = data.get(Protocol.Field.ID).asText();
-                    } else {
-                        documentID = null;
-                    }
-
-                    final String collectionName;
-
-                    if (data.has(Protocol.Field.COLLECTION)) {
-                        collectionName = data.get(Protocol.Field.COLLECTION).asText();
-                    } else {
-                        collectionName = null;
-                    }
-
-                    final String newValuesJson;
-
-                    if (data.has(Protocol.Field.FIELDS)) {
-                        newValuesJson = data.get(Protocol.Field.FIELDS).toString();
-                    } else {
-                        newValuesJson = null;
-                    }
-
-                    if (mDataStore != null) {
-                        mDataStore.onDataAdded(collectionName, documentID,
-                                               fromJson(newValuesJson, Fields.class));
-                    }
-
-                    mCallbackProxy.onDataAdded(collectionName, documentID, newValuesJson);
-                } else if (message.equals(Protocol.Message.CHANGED)) {
-                    final String documentID;
-
-                    if (data.has(Protocol.Field.ID)) {
-                        documentID = data.get(Protocol.Field.ID).asText();
-                    } else {
-                        documentID = null;
-                    }
-
-                    final String collectionName;
-
-                    if (data.has(Protocol.Field.COLLECTION)) {
-                        collectionName = data.get(Protocol.Field.COLLECTION).asText();
-                    } else {
-                        collectionName = null;
-                    }
-
-                    final String updatedValuesJson;
-
-                    if (data.has(Protocol.Field.FIELDS)) {
-                        updatedValuesJson = data.get(Protocol.Field.FIELDS).toString();
-                    } else {
-                        updatedValuesJson = null;
-                    }
-
-                    final String removedValuesJson;
-
-                    if (data.has(Protocol.Field.CLEARED)) {
-                        removedValuesJson = data.get(Protocol.Field.CLEARED).toString();
-                    } else {
-                        removedValuesJson = null;
-                    }
-
-                    if (mDataStore != null) {
-                        mDataStore.onDataChanged(collectionName, documentID,
-                                                 fromJson(updatedValuesJson, Fields.class),
-                                                 fromJson(removedValuesJson, String[].class));
-                    }
-
-                    mCallbackProxy.onDataChanged(collectionName, documentID, updatedValuesJson,
-                                                 removedValuesJson);
-                } else if (message.equals(Protocol.Message.REMOVED)) {
-                    final String documentID;
-
-                    if (data.has(Protocol.Field.ID)) {
-                        documentID = data.get(Protocol.Field.ID).asText();
-                    } else {
-                        documentID = null;
-                    }
-
-                    final String collectionName;
-
-                    if (data.has(Protocol.Field.COLLECTION)) {
-                        collectionName = data.get(Protocol.Field.COLLECTION).asText();
-                    } else {
-                        collectionName = null;
-                    }
-
-                    if (mDataStore != null) {
-                        mDataStore.onDataRemoved(collectionName, documentID);
-                    }
-
-                    mCallbackProxy.onDataRemoved(collectionName, documentID);
-                } else if (message.equals(Protocol.Message.RESULT)) {
-                    // check if we have to process any result data internally
-                    if (data.has(Protocol.Field.RESULT)) {
-                        final JsonNode resultData = data.get(Protocol.Field.RESULT);
-
-                        // if the result is from a previous login attempt
-                        if (isLoginResult(resultData)) {
-                            // extract the login token for subsequent automatic re-login
-                            final String loginToken =
-                                    resultData.get(Protocol.Field.TOKEN).asText();
-                            saveLoginToken(loginToken);
-
-                            // extract the user's ID
-                            mLoggedInUserId = resultData.get(Protocol.Field.ID).asText();
-                        }
-                    }
-
-                    final String id;
-
-                    if (data.has(Protocol.Field.ID)) {
-                        id = data.get(Protocol.Field.ID).asText();
-                    } else {
-                        id = null;
-                    }
-
-                    final Listener listener = mListeners.get(id);
-
-                    if (listener instanceof ResultListener) {
-                        mListeners.remove(id);
-
-                        final String result;
-
-                        if (data.has(Protocol.Field.RESULT)) {
-                            result = data.get(Protocol.Field.RESULT).toString();
-                        } else {
-                            result = null;
-                        }
-
-                        if (data.has(Protocol.Field.ERROR)) {
-                            final Protocol.Error error =
-                                    Protocol.Error.fromJson(data.get(Protocol.Field.ERROR));
-                            mCallbackProxy.forResultListener((ResultListener) listener)
-                                    .onError(error.getError(), error.getReason(),
-                                             error.getDetails());
-                        } else {
-                            mCallbackProxy.forResultListener((ResultListener) listener)
-                                    .onSuccess(result);
-                        }
-                    }
-                } else if (message.equals(Protocol.Message.READY)) {
-                    if (data.has(Protocol.Field.SUBS)) {
-                        final Iterator<JsonNode> elements =
-                                data.get(Protocol.Field.SUBS).elements();
-                        String subscriptionId;
-
-                        final String fields;
-                        if (data.has(Protocol.Field.FIELDS)) {
-                            fields = data.get(Protocol.Field.FIELDS).toString();
-                        } else {
-                            fields = null;
-                        }
-
-                        final String subs;
-                        if (data.has(Protocol.Field.SUBS)) {
-                            subs = data.get(Protocol.Field.SUBS).toString();
-                        } else {
-                            subs = null;
-                        }
-
-                        while (elements.hasNext()) {
-                            subscriptionId = elements.next().asText();
-
-                            final Listener listener = mListeners.get(subscriptionId);
-
-                            if (listener instanceof SubscribeListener) {
-                                mListeners.remove(subscriptionId);
-
-                                mCallbackProxy.forSubscribeListener((SubscribeListener) listener)
-                                        .onSuccess();
+                                // the server should be closing the connection now and we will
+                                // re-connect afterwards
+                            } else {
+                                throw new RuntimeException(
+                                        "Protocol version not supported: " + desiredVersion);
                             }
                         }
-                    }
-                } else if (message.equals(Protocol.Message.NOSUB)) {
-                    final String subscriptionId;
+                        break;
+                    case Protocol.Message.PING: {
+                        final String id;
 
-                    if (data.has(Protocol.Field.ID)) {
-                        subscriptionId = data.get(Protocol.Field.ID).asText();
-                    } else {
-                        subscriptionId = null;
-                    }
-
-                    final Listener listener = mListeners.get(subscriptionId);
-
-                    if (listener instanceof SubscribeListener) {
-                        mListeners.remove(subscriptionId);
-
-                        if (data.has(Protocol.Field.ERROR)) {
-                            final Protocol.Error error =
-                                    Protocol.Error.fromJson(data.get(Protocol.Field.ERROR));
-                            mCallbackProxy.forSubscribeListener((SubscribeListener) listener)
-                                    .onError(error.getError(), error.getReason(),
-                                             error.getDetails());
+                        if (data.has(Protocol.Field.ID)) {
+                            id = data.get(Protocol.Field.ID).asText();
                         } else {
-                            mCallbackProxy.forSubscribeListener((SubscribeListener) listener)
-                                    .onError(null, null, null);
+                            id = null;
                         }
-                    } else if (listener instanceof UnsubscribeListener) {
-                        mListeners.remove(subscriptionId);
 
-                        mCallbackProxy.forUnsubscribeListener((UnsubscribeListener) listener)
-                                .onSuccess();
+                        sendPong(id);
+                        break;
+                    }
+                    case Protocol.Message.ADDED:
+                    case Protocol.Message.ADDED_BEFORE: {
+                        final String documentID;
+
+                        if (data.has(Protocol.Field.ID)) {
+                            documentID = data.get(Protocol.Field.ID).asText();
+                        } else {
+                            documentID = null;
+                        }
+
+                        final String collectionName;
+
+                        if (data.has(Protocol.Field.COLLECTION)) {
+                            collectionName = data.get(Protocol.Field.COLLECTION).asText();
+                        } else {
+                            collectionName = null;
+                        }
+
+                        final String newValuesJson;
+
+                        if (data.has(Protocol.Field.FIELDS)) {
+                            newValuesJson = data.get(Protocol.Field.FIELDS).toString();
+                        } else {
+                            newValuesJson = null;
+                        }
+
+                        if (mDataStore != null) {
+                            mDataStore.onDataAdded(collectionName, documentID,
+                                                   fromJson(newValuesJson, Fields.class));
+                        }
+
+                        mCallbackProxy.onDataAdded(collectionName, documentID, newValuesJson);
+                        break;
+                    }
+                    case Protocol.Message.CHANGED: {
+                        final String documentID;
+
+                        if (data.has(Protocol.Field.ID)) {
+                            documentID = data.get(Protocol.Field.ID).asText();
+                        } else {
+                            documentID = null;
+                        }
+
+                        final String collectionName;
+
+                        if (data.has(Protocol.Field.COLLECTION)) {
+                            collectionName = data.get(Protocol.Field.COLLECTION).asText();
+                        } else {
+                            collectionName = null;
+                        }
+
+                        final String updatedValuesJson;
+
+                        if (data.has(Protocol.Field.FIELDS)) {
+                            updatedValuesJson = data.get(Protocol.Field.FIELDS).toString();
+                        } else {
+                            updatedValuesJson = null;
+                        }
+
+                        final String removedValuesJson;
+
+                        if (data.has(Protocol.Field.CLEARED)) {
+                            removedValuesJson = data.get(Protocol.Field.CLEARED).toString();
+                        } else {
+                            removedValuesJson = null;
+                        }
+
+                        if (mDataStore != null) {
+                            mDataStore.onDataChanged(collectionName, documentID,
+                                                     fromJson(updatedValuesJson, Fields.class),
+                                                     fromJson(removedValuesJson, String[].class));
+                        }
+
+                        mCallbackProxy.onDataChanged(collectionName, documentID, updatedValuesJson,
+                                                     removedValuesJson);
+                        break;
+                    }
+                    case Protocol.Message.REMOVED: {
+                        final String documentID;
+
+                        if (data.has(Protocol.Field.ID)) {
+                            documentID = data.get(Protocol.Field.ID).asText();
+                        } else {
+                            documentID = null;
+                        }
+
+                        final String collectionName;
+
+                        if (data.has(Protocol.Field.COLLECTION)) {
+                            collectionName = data.get(Protocol.Field.COLLECTION).asText();
+                        } else {
+                            collectionName = null;
+                        }
+
+                        if (mDataStore != null) {
+                            mDataStore.onDataRemoved(collectionName, documentID);
+                        }
+
+                        mCallbackProxy.onDataRemoved(collectionName, documentID);
+                        break;
+                    }
+                    case Protocol.Message.RESULT: {
+                        // check if we have to process any result data internally
+                        if (data.has(Protocol.Field.RESULT)) {
+                            final JsonNode resultData = data.get(Protocol.Field.RESULT);
+
+                            // if the result is from a previous login attempt
+                            if (isLoginResult(resultData)) {
+                                // extract the login token for subsequent automatic re-login
+                                final String loginToken =
+                                        resultData.get(Protocol.Field.TOKEN).asText();
+                                saveLoginToken(loginToken);
+
+                                // extract the user's ID
+                                mLoggedInUserId = resultData.get(Protocol.Field.ID).asText();
+                            }
+                        }
+
+                        final String id;
+
+                        if (data.has(Protocol.Field.ID)) {
+                            id = data.get(Protocol.Field.ID).asText();
+                        } else {
+                            id = null;
+                        }
+
+                        final Listener listener = mListeners.get(id);
+
+                        if (listener instanceof ResultListener) {
+                            mListeners.remove(id);
+
+                            final String result;
+
+                            if (data.has(Protocol.Field.RESULT)) {
+                                result = data.get(Protocol.Field.RESULT).toString();
+                            } else {
+                                result = null;
+                            }
+
+                            if (data.has(Protocol.Field.ERROR)) {
+                                final Protocol.Error error =
+                                        Protocol.Error.fromJson(data.get(Protocol.Field.ERROR));
+                                mCallbackProxy.forResultListener((ResultListener) listener)
+                                        .onError(error.getError(), error.getReason(),
+                                                 error.getDetails());
+                            } else {
+                                mCallbackProxy.forResultListener((ResultListener) listener)
+                                        .onSuccess(result);
+                            }
+                        }
+                        break;
+                    }
+                    case Protocol.Message.READY:
+                        if (data.has(Protocol.Field.SUBS)) {
+                            final Iterator<JsonNode> elements =
+                                    data.get(Protocol.Field.SUBS).elements();
+                            String subscriptionId;
+
+                            final String fields;
+                            if (data.has(Protocol.Field.FIELDS)) {
+                                fields = data.get(Protocol.Field.FIELDS).toString();
+                            } else {
+                                fields = null;
+                            }
+
+                            final String subs;
+                            if (data.has(Protocol.Field.SUBS)) {
+                                subs = data.get(Protocol.Field.SUBS).toString();
+                            } else {
+                                subs = null;
+                            }
+
+                            while (elements.hasNext()) {
+                                subscriptionId = elements.next().asText();
+
+                                final Listener listener = mListeners.get(subscriptionId);
+
+                                if (listener instanceof SubscribeListener) {
+                                    mListeners.remove(subscriptionId);
+
+                                    mCallbackProxy
+                                            .forSubscribeListener((SubscribeListener) listener)
+                                            .onSuccess();
+                                }
+                            }
+                        }
+                        break;
+                    case Protocol.Message.NOSUB: {
+                        final String subscriptionId;
+
+                        if (data.has(Protocol.Field.ID)) {
+                            subscriptionId = data.get(Protocol.Field.ID).asText();
+                        } else {
+                            subscriptionId = null;
+                        }
+
+                        final Listener listener = mListeners.get(subscriptionId);
+
+                        if (listener instanceof SubscribeListener) {
+                            mListeners.remove(subscriptionId);
+
+                            if (data.has(Protocol.Field.ERROR)) {
+                                final Protocol.Error error =
+                                        Protocol.Error.fromJson(data.get(Protocol.Field.ERROR));
+                                mCallbackProxy.forSubscribeListener((SubscribeListener) listener)
+                                        .onError(error.getError(), error.getReason(),
+                                                 error.getDetails());
+                            } else {
+                                mCallbackProxy.forSubscribeListener((SubscribeListener) listener)
+                                        .onError(null, null, null);
+                            }
+                        } else if (listener instanceof UnsubscribeListener) {
+                            mListeners.remove(subscriptionId);
+
+                            mCallbackProxy.forUnsubscribeListener((UnsubscribeListener) listener)
+                                    .onSuccess();
+                        }
+                        break;
                     }
                 }
             }
@@ -1155,7 +1194,7 @@ public class Meteor {
      *         the name of the method to call, e.g. `/someCollection.insert`
      */
     public void call(final String methodName) {
-        call(methodName, null, null);
+        call(methodName, new Object[]{}, null);
     }
 
     /**
@@ -1172,6 +1211,42 @@ public class Meteor {
     }
 
     /**
+     * Executes a remote procedure call
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param param
+     *         the JSONObject that should be passed to the method as parameter
+     */
+    public void call(final String methodName, final JSONObject param) {
+        call(methodName, param, null);
+    }
+
+    /**
+     * Executes a remote procedure call
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param param
+     *         the JSONArray that should be passed to the method as parameter
+     */
+    public void call(final String methodName, final JSONArray param) {
+        call(methodName, param, null);
+    }
+
+    /**
+     * Executes a remote procedure call
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param param
+     *         the String that should be passed to the method as parameter
+     */
+    public void call(final String methodName, final String param) {
+        call(methodName, param, null);
+    }
+
+    /**
      * Executes a remote procedure call (any Java objects (POJOs) will be serialized to JSON by the
      * Jackson library)
      *
@@ -1181,7 +1256,7 @@ public class Meteor {
      *         the listener to trigger when the result has been received or `null`
      */
     public void call(final String methodName, final ResultListener listener) {
-        call(methodName, null, listener);
+        call(methodName, new Object[]{}, listener);
     }
 
     /**
@@ -1195,9 +1270,54 @@ public class Meteor {
      * @param listener
      *         the listener to trigger when the result has been received or `null`
      */
-    public void call(final String methodName, final Object[] params, final ResultListener
-            listener) {
+    public void call(final String methodName, final Object[] params,
+                     final ResultListener listener) {
         callWithSeed(methodName, null, params, listener);
+    }
+
+    /**
+     * Executes a remote procedure call
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param param
+     *         the JSONObject that should be passed to the method as parameter
+     * @param listener
+     *         the listener to trigger when the result has been received or `null`
+     */
+    public void call(final String methodName, final JSONObject param,
+                     final ResultListener listener) {
+        callWithSeed(methodName, null, param, listener);
+    }
+
+    /**
+     * Executes a remote procedure call
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param param
+     *         the JSONArray that should be passed to the method as parameter
+     * @param listener
+     *         the listener to trigger when the result has been received or `null`
+     */
+    public void call(final String methodName, final JSONArray param,
+                     final ResultListener listener) {
+        callWithSeed(methodName, null, param, listener);
+    }
+
+    /**
+     * Executes a remote procedure call
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param param
+     *         the String that should be passed to the method as parameter
+     * @param listener
+     *         the listener to trigger when the result has been received or `null`
+     */
+    public void call(final String methodName, final String param,
+                     final ResultListener listener) {
+        callWithSeed(methodName, null, param, listener);
     }
 
     /**
@@ -1210,7 +1330,7 @@ public class Meteor {
      *         an arbitrary seed for pseudo-random generators or `null`
      */
     public void callWithSeed(final String methodName, final String randomSeed) {
-        callWithSeed(methodName, randomSeed, null, null);
+        callWithSeed(methodName, randomSeed, new Object[]{}, null);
     }
 
     /**
@@ -1224,9 +1344,56 @@ public class Meteor {
      * @param params
      *         the objects that should be passed to the method as parameters
      */
-    public void callWithSeed(final String methodName, final String randomSeed, final Object[]
-            params) {
+    public void callWithSeed(final String methodName, final String randomSeed,
+                             final Object[] params) {
         callWithSeed(methodName, randomSeed, params, null);
+    }
+
+    /**
+     * Executes a remote procedure call
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param randomSeed
+     *         an arbitrary seed for pseudo-random generators or `null`
+     * @param param
+     *         the JSONObject that should be passed to the method as parameter
+     */
+    public void callWithSeed(final String methodName, final String randomSeed,
+                             final JSONObject param) {
+        callWithSeed(methodName, randomSeed, param, null);
+    }
+
+    /**
+     * Executes a remote procedure call (any Java objects (POJOs) will be serialized to JSON by the
+     * Jackson library)
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param randomSeed
+     *         an arbitrary seed for pseudo-random generators or `null`
+     * @param param
+     *         the JSONArray that should be passed to the method as parameter
+     */
+    public void callWithSeed(final String methodName, final String randomSeed,
+                             final JSONArray param) {
+        callWithSeed(methodName, randomSeed, param, null);
+    }
+
+    /**
+     * Executes a remote procedure call (any Java objects (POJOs) will be serialized to JSON by the
+     * Jackson library)
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param randomSeed
+     *         an arbitrary seed for pseudo-random generators or `null`
+     * @param param
+     *         the String that should be passed to the method as parameters
+     */
+    public void callWithSeed(final String methodName, final String randomSeed,
+                             final String param) {
+        callWithSeed(methodName, randomSeed, param, null);
     }
 
     /**
@@ -1242,8 +1409,8 @@ public class Meteor {
      * @param listener
      *         the listener to trigger when the result has been received or `null`
      */
-    public void callWithSeed(final String methodName, final String randomSeed, final Object[]
-            params, final ResultListener listener) {
+    public void callWithSeed(final String methodName, final String randomSeed,
+                             final Object[] params, final ResultListener listener) {
         // create a new unique ID for this request
         final String callId = uniqueID();
 
@@ -1252,14 +1419,131 @@ public class Meteor {
             mListeners.put(callId, listener);
         }
 
-        final Map<String, Object> data = new HashMap<String, Object>();
+        final Map<String, Object> data = new HashMap<>();
 
         data.put(Protocol.Field.MESSAGE, Protocol.Message.METHOD);
         data.put(Protocol.Field.METHOD, methodName);
         data.put(Protocol.Field.ID, callId);
 
-        if (params != null) {
+        if (params != null && params.length > 0) {
             data.put(Protocol.Field.PARAMS, params);
+        }
+
+        if (randomSeed != null) {
+            data.put(Protocol.Field.RANDOM_SEED, randomSeed);
+        }
+
+        send(data);
+    }
+
+    /**
+     * Executes a remote procedure call
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param randomSeed
+     *         an arbitrary seed for pseudo-random generators or `null`
+     * @param param
+     *         the JSON Object to send
+     * @param listener
+     *         the listener to trigger when the result has been received or `null`
+     */
+    public void callWithSeed(final String methodName, final String randomSeed,
+                             final JSONObject param, final ResultListener listener) {
+        // create a new unique ID for this request
+        final String callId = uniqueID();
+
+        // save a reference to the listener to be executed later
+        if (listener != null) {
+            mListeners.put(callId, listener);
+        }
+
+        final Map<String, Object> data = new HashMap<>();
+
+        data.put(Protocol.Field.MESSAGE, Protocol.Message.METHOD);
+        data.put(Protocol.Field.METHOD, methodName);
+        data.put(Protocol.Field.ID, callId);
+
+        if (param != null) {
+            data.put(Protocol.Field.PARAMS, param);
+        }
+
+        if (randomSeed != null) {
+            data.put(Protocol.Field.RANDOM_SEED, randomSeed);
+        }
+
+        send(data);
+    }
+
+    /**
+     * Executes a remote procedure call
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param randomSeed
+     *         an arbitrary seed for pseudo-random generators or `null`
+     * @param param
+     *         the JSON Array to send
+     * @param listener
+     *         the listener to trigger when the result has been received or `null`
+     */
+    public void callWithSeed(final String methodName, final String randomSeed,
+                             final JSONArray param, final ResultListener listener) {
+        // create a new unique ID for this request
+        final String callId = uniqueID();
+
+        // save a reference to the listener to be executed later
+        if (listener != null) {
+            mListeners.put(callId, listener);
+        }
+
+        final Map<String, Object> data = new HashMap<>();
+
+        data.put(Protocol.Field.MESSAGE, Protocol.Message.METHOD);
+        data.put(Protocol.Field.METHOD, methodName);
+        data.put(Protocol.Field.ID, callId);
+
+        if (param != null) {
+            data.put(Protocol.Field.PARAMS, param);
+        }
+
+        if (randomSeed != null) {
+            data.put(Protocol.Field.RANDOM_SEED, randomSeed);
+        }
+
+        send(data);
+    }
+
+    /**
+     * Executes a remote procedure call
+     *
+     * @param methodName
+     *         the name of the method to call, e.g. `/someCollection.insert`
+     * @param randomSeed
+     *         an arbitrary seed for pseudo-random generators or `null`
+     * @param param
+     *         the string to send
+     * @param listener
+     *         the listener to trigger when the result has been received or `null`
+     */
+    public void callWithSeed(final String methodName, final String randomSeed,
+                             final String param, final ResultListener listener) {
+        // create a new unique ID for this request
+        final String callId = uniqueID();
+
+        // save a reference to the listener to be executed later
+        if (listener != null) {
+            mListeners.put(callId, listener);
+        }
+
+        final Map<String, Object> data = new HashMap<>();
+
+        data.put(Protocol.Field.MESSAGE, Protocol.Message.METHOD);
+        data.put(Protocol.Field.METHOD, methodName);
+        data.put(Protocol.Field.ID, callId);
+
+        if (param != null) {
+            data.put(Protocol.Field.PARAMS, param);
         }
 
         if (randomSeed != null) {
