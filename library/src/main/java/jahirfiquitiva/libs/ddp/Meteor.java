@@ -425,6 +425,7 @@ public class Meteor {
      */
     private void send(final Object obj) {
         if (obj instanceof String) {
+            log("Sending: " + obj.toString());
             send(obj.toString());
         } else {
             // serialize the object to JSON
