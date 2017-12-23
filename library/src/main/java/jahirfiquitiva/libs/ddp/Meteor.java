@@ -424,17 +424,21 @@ public class Meteor {
      *         the Java object to send
      */
     private void send(final Object obj) {
-        // serialize the object to JSON
-        final String jsonStr = toJson(obj);
+        if (obj instanceof String) {
+            send(obj.toString());
+        } else {
+            // serialize the object to JSON
+            final String jsonStr = toJson(obj);
 
-        if (jsonStr == null) {
-            throw new IllegalArgumentException("Object would be serialized to `null`");
+            if (jsonStr == null) {
+                throw new IllegalArgumentException("Object would be serialized to `null`");
+            }
+
+            log("Sending: " + jsonStr);
+
+            // send the JSON string
+            send(jsonStr);
         }
-
-        log("Sending: " + jsonStr);
-
-        // send the JSON string
-        send(jsonStr);
     }
 
     /**
