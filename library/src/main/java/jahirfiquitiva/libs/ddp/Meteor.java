@@ -426,7 +426,7 @@ public class Meteor {
     private void send(final Object obj) {
         if (obj instanceof String) {
             log("Sending: " + obj.toString());
-            send(obj.toString());
+            send(obj.toString().replaceAll("\\\\\"","\""));
         } else {
             // serialize the object to JSON
             final String jsonStr = toJson(obj);
